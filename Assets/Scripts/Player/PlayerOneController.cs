@@ -4,7 +4,7 @@ using UnityEditor.Callbacks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-public class PlayerController : MonoBehaviour
+public class PlayerOneController : MonoBehaviour
 {
 
     Rigidbody2D rb;
@@ -30,13 +30,13 @@ public class PlayerController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        move = Input.GetAxis("Horizontal");
-        var grounded = Physics2D.OverlapBox(feet.position, feetbox, 0, groundMask);
 
-        if (Input.GetButtonDown("Jump") && grounded)
-        {
-            jump = true;
-        }
+        var grounded = Physics2D.OverlapBox(feet.position, feetbox, 0, groundMask);
+        move = 0;
+
+        if (Input.GetKey(KeyCode.A)) move = -1;
+        if (Input.GetKey(KeyCode.D)) move = 1;
+        if (Input.GetKeyDown(KeyCode.W) && grounded) jump = true;
 
         if(this.gameObject.transform.position.y < -9)
         {
