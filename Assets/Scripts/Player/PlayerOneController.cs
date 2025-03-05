@@ -1,63 +1,65 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.InteropServices.WindowsRuntime;
 using UnityEditor.Callbacks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class PlayerOneController : MonoBehaviour
 {
-
+    float horizontalInput;
+    float moveSpeed = 5f;
+    bool isFacingRight = true;
+    float jumpPower = 5f;
+    bool isGrounded = false;
     Rigidbody2D rb;
-    float move = 0;
-    float speed = 5;
-    bool jump = false;
-    float jumpForce = 10.0f;
-    Transform feet;
-    Vector2 feetbox;
-    LayerMask groundMask;
-    Vector3 startPos;
+    Animator animator;
+
     // Start is called before the first frame update
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
-        feet = transform.Find("Feet");
-        feetbox = new Vector2(0.8f, 0.1f);
-        groundMask = LayerMask.GetMask("Ground");
-        startPos = this.gameObject.transform.position;
-        
+        animator = GetComponent<Animator>();
     }
 
     // Update is called once per frame
     void Update()
     {
+        horizontalInput = Input.GetAxis("Horizontal");
 
-        var grounded = Physics2D.OverlapBox(feet.position, feetbox, 0, groundMask);
-        move = 0;
+        FlipSprite();
 
-        if (Input.GetKey(KeyCode.A)) move = -1;
-        if (Input.GetKey(KeyCode.D)) move = 1;
-        if (Input.GetKeyDown(KeyCode.W) && grounded) jump = true;
-
-        if(this.gameObject.transform.position.y < -9)
+        if(Input.GetButtonDown("Jump") && isGrounded)
         {
-            this.gameObject.transform.position = startPos;
+            rb.velocity = new Vector2(rb.velocity.x, jumpPower);
+            isGrounded = false;
+            animator.SetBool("isJumping", !isGrounded);
         }
-        
     }
 
     void FixedUpdate()
     {
-        if (move != 0)
-        {
-            var velocity = rb.velocity;
-            velocity.x = move * speed;
-            rb.velocity = velocity;
-        }
+        rb.velocity = new Vector2(horizontalInput * moveSpeed, rb.velocity.y);
+        animator.SetFloat("xVelocity", Math.Abs(rb.velocity.x));
+        animator.SetFloat("yVelocity", rb.velocity.y);
+    }
 
-        if (jump)
+
+    void FlipSprite()
+    {
+        if(isFacingRight && horizontalInput < 0f || !isFacingRight && horizontalInput > 0f)
         {
-            jump = false;
-            rb.AddForce(transform.up * jumpForce, ForceMode2D.Impulse);
+            isFacingRight = !isFacingRight;
+            Vector3 ls = transform.localScale;
+            ls.x *= -1f;
+            transform.localScale = ls;
         }
+    }
+
+    private void OnTriggerEnter2D(Collider2D collision)
+    {
+        isGrounded = true;
+        animator.SetBool("isJumping", !isGrounded);
     }
 }
