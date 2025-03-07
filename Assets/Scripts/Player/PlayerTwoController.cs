@@ -1,63 +1,115 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
-using UnityEditor.Callbacks;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 public class PlayerTwoController : MonoBehaviour
 {
-
+    float horizontalInput;
+    float moveSpeed = 5f;
+    bool isFacingRight = true;  // Default facing direction
+    [SerializeField] bool spawnFacingRight = true;  // New inspector variable
+    float jumpPower = 8f;
+    bool isGrounded = false;
     Rigidbody2D rb;
-    float move = 0;
-    float speed = 5;
-    bool jump = false;
-    float jumpForce = 10.0f;
-    Transform feet;
-    Vector2 feetbox;
-    LayerMask groundMask;
-    Vector3 startPos;
-    // Start is called before the first frame update
+    Animator animator;
+    public Transform groundCheck;
+    public float groundCheckRadius = 0.2f;
+    public LayerMask groundLayer;
+    
+    [Header("Better Jumping")]
+    public float fallMultiplier = 2.5f;
+    public float lowJumpMultiplier = 2f;
+    public float maxFallSpeed = 15f;
+
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
-        feet = transform.Find("Feet");
-        feetbox = new Vector2(0.8f, 0.1f);
-        groundMask = LayerMask.GetMask("Ground");
-        startPos = this.gameObject.transform.position;
+        animator = GetComponent<Animator>();
         
+        // Set initial facing direction on spawn
+        SetInitialFacingDirection();
     }
-
-    // Update is called once per frame
+    
+    void SetInitialFacingDirection()
+    {
+        // If current facing direction doesn't match desired spawn direction
+        if (isFacingRight != spawnFacingRight)
+        {
+            // Flip the character
+            isFacingRight = spawnFacingRight;
+            Vector3 ls = transform.localScale;
+            ls.x *= -1f;
+            transform.localScale = ls;
+        }
+    }
+    
     void Update()
     {
+        horizontalInput = 0f;
 
-        var grounded = Physics2D.OverlapBox(feet.position, feetbox, 0, groundMask);
-        move = 0;
+        if (Input.GetKey(KeyCode.LeftArrow))
+            horizontalInput = -1f;
+        if (Input.GetKey(KeyCode.RightArrow))
+            horizontalInput = 1f;
 
-        if (Input.GetKey(KeyCode.LeftArrow)) move = -1;
-        if (Input.GetKey(KeyCode.RightArrow)) move = 1;
-        if (Input.GetKeyDown(KeyCode.UpArrow) && grounded) jump = true;
+        FlipSprite();
 
-        if(this.gameObject.transform.position.y < -9)
+        // Check if grounded
+        isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
+        animator.SetBool("isJumping", !isGrounded);
+
+        if (Input.GetKeyDown(KeyCode.UpArrow) && isGrounded)
         {
-            this.gameObject.transform.position = startPos;
+            rb.velocity = new Vector2(rb.velocity.x, jumpPower);
         }
         
+        // Apply better jump physics
+        ApplyBetterJumping();
     }
 
     void FixedUpdate()
     {
-        if (move != 0)
-        {
-            var velocity = rb.velocity;
-            velocity.x = move * speed;
-            rb.velocity = velocity;
-        }
+        rb.velocity = new Vector2(horizontalInput * moveSpeed, rb.velocity.y);
+        animator.SetFloat("xVelocity", Mathf.Abs(rb.velocity.x));
+        animator.SetFloat("yVelocity", rb.velocity.y);
+    }
 
-        if (jump)
+    void FlipSprite()
+    {
+        if (isFacingRight && horizontalInput < 0f || !isFacingRight && horizontalInput > 0f)
         {
-            jump = false;
-            rb.AddForce(transform.up * jumpForce, ForceMode2D.Impulse);
+            isFacingRight = !isFacingRight;
+            Vector3 ls = transform.localScale;
+            ls.x *= -1f;
+            transform.localScale = ls;
+        }
+    }
+    
+    void ApplyBetterJumping()
+    {
+        // If we're falling, apply a stronger gravity
+        if (rb.velocity.y < 0)
+        {
+            rb.velocity += Vector2.up * Physics2D.gravity.y * (fallMultiplier - 1) * Time.deltaTime;
+            
+            // Limit maximum fall speed
+            if (rb.velocity.y < -maxFallSpeed)
+                rb.velocity = new Vector2(rb.velocity.x, -maxFallSpeed);
+        }
+        // If we're jumping but not holding the jump button, apply a weaker jump
+        else if (rb.velocity.y > 0 && !Input.GetKey(KeyCode.UpArrow))
+        {
+            rb.velocity += Vector2.up * Physics2D.gravity.y * (lowJumpMultiplier - 1) * Time.deltaTime;
+        }
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        if (groundCheck != null)
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireSphere(groundCheck.position, groundCheckRadius);
         }
     }
 }

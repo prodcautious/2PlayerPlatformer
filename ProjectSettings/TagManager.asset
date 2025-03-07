@@ -4,8 +4,10 @@
 TagManager:
   serializedVersion: 2
   tags:
-  - PlayerOne
-  - PlayerTwo
+  - Ground
+  - Blue
+  - Red
+  - Box
   layers:
   - Default
   - TransparentFX
@@ -14,8 +16,8 @@ TagManager:
   - Water
   - UI
   - Player
-  - 
-  - 
+  - Blue
+  - Red
   - 
   - 
   - 

@@ -4,7 +4,13 @@ public class ButtonController : MonoBehaviour
 {
     public GameObject target;
     public ButtonColor buttonColor;
-    
+
+    public float pressDepth = 0.1f; // How far down the button moves
+    public float lerpSpeed = 10f;   // How fast the button moves
+
+    private Vector3 originalPosition;
+    private Vector3 pressedPosition;
+
     public enum ButtonColor
     {
         Red,
@@ -14,20 +20,30 @@ public class ButtonController : MonoBehaviour
     private bool isPressed = false;
     private int currentPressCount = 0;
 
+    private void Start()
+    {
+        originalPosition = transform.position;
+        pressedPosition = originalPosition - new Vector3(0, pressDepth, 0);
+    }
+
+    private void Update()
+    {
+        Vector3 targetPosition = isPressed ? pressedPosition : originalPosition;
+        transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * lerpSpeed);
+    }
+
     private void OnTriggerEnter2D(Collider2D collision)
     {
-        // Check if the collision is valid for this button color
-        bool validBlueCollision = (buttonColor == ButtonColor.Blue) && 
-            (collision.CompareTag("PlayerOne") || collision.CompareTag("Box"));
-        
-        bool validRedCollision = (buttonColor == ButtonColor.Red) && 
-            (collision.CompareTag("PlayerTwo") || collision.CompareTag("Box"));
+        bool validBlueCollision = (buttonColor == ButtonColor.Blue) &&
+            (collision.CompareTag("Blue") || collision.CompareTag("Box"));
 
-        // Increment press count and deactivate target if not already pressed
+        bool validRedCollision = (buttonColor == ButtonColor.Red) &&
+            (collision.CompareTag("Red") || collision.CompareTag("Box"));
+
         if (validBlueCollision || validRedCollision)
         {
             currentPressCount++;
-            
+
             if (!isPressed)
             {
                 isPressed = true;
@@ -38,19 +54,16 @@ public class ButtonController : MonoBehaviour
 
     private void OnTriggerExit2D(Collider2D collision)
     {
-        // Check if the collision is valid for this button color
-        bool validBlueCollision = (buttonColor == ButtonColor.Blue) && 
-            (collision.CompareTag("PlayerOne") || collision.CompareTag("Box"));
-        
-        bool validRedCollision = (buttonColor == ButtonColor.Red) && 
-            (collision.CompareTag("PlayerTwo") || collision.CompareTag("Box"));
+        bool validBlueCollision = (buttonColor == ButtonColor.Blue) &&
+            (collision.CompareTag("Blue") || collision.CompareTag("Box"));
 
-        // Decrement press count
+        bool validRedCollision = (buttonColor == ButtonColor.Red) &&
+            (collision.CompareTag("Red") || collision.CompareTag("Box"));
+
         if (validBlueCollision || validRedCollision)
         {
             currentPressCount--;
 
-            // Reactivate target only when no objects are pressing the button
             if (currentPressCount <= 0)
             {
                 isPressed = false;
