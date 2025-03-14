@@ -1,69 +1,89 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class PlatformController : MonoBehaviour
 {
     public Transform pointA;       // Starting position
     public Transform pointB;       // Ending position
     public float moveSpeed = 2f;   // Movement speed
-    public PlatformColor platformColor;
 
+    private Vector3 positionA;
+    private Vector3 positionB;
     private Vector3 targetPosition;
-    private Collider2D platformCollider;
-
-    public enum PlatformColor
-    {
-        Red,
-        Blue
-    }
+    private Vector3 previousPosition;
+    private List<Transform> ridingObjects = new List<Transform>();
 
     private void Start()
     {
+        // Store the world positions at start
+        positionA = pointA.position;
+        positionB = pointB.position;
+        
         // Start the platform at the midpoint between pointA and pointB
-        transform.position = (pointA.position + pointB.position) / 2f;
-        targetPosition = pointB.position;  // Set the first target to pointB
-        platformCollider = GetComponent<Collider2D>();
+        transform.position = (positionA + positionB) / 2f;
+        previousPosition = transform.position;
+        targetPosition = positionB;  // Set the first target to pointB
     }
 
     private void Update()
     {
+        previousPosition = transform.position;
+        
         // Move the platform towards the target position
         transform.position = Vector3.MoveTowards(transform.position, targetPosition, moveSpeed * Time.deltaTime);
 
         // Once the platform reaches its target, switch to the other point
         if (Vector3.Distance(transform.position, targetPosition) < 0.01f)
         {
-            targetPosition = (targetPosition == pointA.position) ? pointB.position : pointA.position;
+            targetPosition = (targetPosition == positionA) ? positionB : positionA;
+        }
+    }
+    
+    private void LateUpdate()
+    {
+        // Move any objects riding the platform
+        Vector3 moveDelta = transform.position - previousPosition;
+        
+        foreach (Transform rider in ridingObjects)
+        {
+            if (rider != null)
+            {
+                rider.position += moveDelta;
+            }
         }
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        HandleInvalidPlayer(collision.collider);
-    }
-
-    private void OnCollisionStay2D(Collision2D collision)
-    {
-        HandleInvalidPlayer(collision.collider);
-    }
-
-    private void HandleInvalidPlayer(Collider2D playerCollider)
-    {
-        if (platformColor == PlatformColor.Red && playerCollider.CompareTag("Blue"))
+        // If contact is from above, add them to riders
+        if (IsContactPointFromAbove(collision))
         {
-            Physics2D.IgnoreCollision(playerCollider, platformCollider, true);
-        }
-        else if (platformColor == PlatformColor.Blue && playerCollider.CompareTag("Red"))
-        {
-            Physics2D.IgnoreCollision(playerCollider, platformCollider, true);
+            if (!ridingObjects.Contains(collision.transform))
+            {
+                ridingObjects.Add(collision.transform);
+            }
         }
     }
 
     private void OnCollisionExit2D(Collision2D collision)
     {
-        // Re-enable collision when they fully leave the platform
-        if (collision.collider.CompareTag("Blue") || collision.collider.CompareTag("Red"))
+        // Remove from riders list when they leave
+        if (ridingObjects.Contains(collision.transform))
         {
-            Physics2D.IgnoreCollision(collision.collider, platformCollider, false);
+            ridingObjects.Remove(collision.transform);
         }
+    }
+    
+    private bool IsContactPointFromAbove(Collision2D collision)
+    {
+        // Check if the contact is from above (player is on top of platform)
+        foreach (ContactPoint2D contact in collision.contacts)
+        {
+            if (contact.normal.y < -0.5f)  // Normal points downward from platform
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }
