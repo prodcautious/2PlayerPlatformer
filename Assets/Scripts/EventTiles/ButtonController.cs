@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 public class ButtonController : MonoBehaviour
 {
@@ -7,9 +8,14 @@ public class ButtonController : MonoBehaviour
 
     public float pressDepth = 0.1f; // How far down the button moves
     public float lerpSpeed = 10f;   // How fast the button moves
-
+    
+    [Header("Timer Settings")]
+    public bool useTimer = false;    // Toggle to enable timer functionality
+    public float timerDuration = 3f; // Duration in seconds before door closes after stepping off
+    
     private Vector3 originalPosition;
     private Vector3 pressedPosition;
+    private Coroutine timerCoroutine;
 
     public enum ButtonColor
     {
@@ -49,6 +55,14 @@ public class ButtonController : MonoBehaviour
                 isPressed = true;
                 target.SetActive(false);
             }
+            
+            // If there's an active timer and something steps on the button again,
+            // stop the timer to prevent the door from closing
+            if (useTimer && timerCoroutine != null)
+            {
+                StopCoroutine(timerCoroutine);
+                timerCoroutine = null;
+            }
         }
     }
 
@@ -66,10 +80,45 @@ public class ButtonController : MonoBehaviour
 
             if (currentPressCount <= 0)
             {
-                isPressed = false;
-                target.SetActive(true);
                 currentPressCount = 0;
+                
+                if (useTimer)
+                {
+                    // Start timer before closing the door
+                    if (timerCoroutine != null)
+                    {
+                        StopCoroutine(timerCoroutine);
+                    }
+                    timerCoroutine = StartCoroutine(ButtonTimerCoroutine());
+                }
+                else
+                {
+                    // Original behavior - close immediately
+                    isPressed = false;
+                    target.SetActive(true);
+                }
             }
+        }
+    }
+    
+    private IEnumerator ButtonTimerCoroutine()
+    {
+        // Keep the button visually pressed and door open during timer
+        yield return new WaitForSeconds(timerDuration);
+        
+        // After timer completes, release button and close door
+        isPressed = false;
+        target.SetActive(true);
+        timerCoroutine = null;
+    }
+    
+    private void OnDisable()
+    {
+        // Safety cleanup in case the object is disabled with an active timer
+        if (timerCoroutine != null)
+        {
+            StopCoroutine(timerCoroutine);
+            timerCoroutine = null;
         }
     }
 }
